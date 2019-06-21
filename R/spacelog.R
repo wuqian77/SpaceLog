@@ -1,5 +1,5 @@
 ##################################
-######11-30-07: R package "space"
+######: R package "space"
 ######R functions for fitting JSRM and MB:
 
 
