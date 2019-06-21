@@ -1,0 +1,2 @@
+useDynLib(spacelog)
+export(space.joint,space.neighbor)
