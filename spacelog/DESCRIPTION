@@ -1,0 +1,16 @@
+Package: spacelog
+Type: Package
+Title: SpaceLog: an R package for inferring gene-gene networks using SPACE model with log penalty
+Version: 0.1.1
+Authors@R: person("Qian (Vicky)", "Wu", email = "qwu@fredhutch.org", role = c("aut"))
+Description: SpaceLog employs log penalty within the framework of an earlier method space (Sparse PArtial Correlation Estimation). We show that the SpaceLog has good performance, particularly for networks with hubs
+License: R (>= 3.5.0)
+Encoding: UTF-8
+LazyData: TRUE
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.0
+NeedsCompilation: no
+Packaged: 2019-07-07
+Author: Qian (Vicky) Wu, Wei Sun, and Li Hsu
+Maintainer: Qian (Vicky) Wu <qwu@fredhutch.org>
+

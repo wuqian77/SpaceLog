@@ -1,0 +1,547 @@
+################################################################################
+### Collaborator:   Li Hsu/Wei Sun         
+###
+### Project:        R01 eQTL and gene expression 
+###                
+### Programmer/Date:             Qian Vicky Wu 01/04/2017
+###         
+################################################################################
+vicky.dir = file.path('/fh/fast/wu_v/Methodology/Li_Hsu/Program/simu_github')
+source(file.path(vicky.dir,"program",'_space_joint_lib.R'))
+
+# ml R-bundle-Bioconductor/
+library(ggplot2)
+library(graphics)
+library(igraph)
+require(reshape2)
+require(scales)
+#fnms = list.files(file.path(out.dir,'simu_data'), pattern="hub_network_simu_n_")
+#fnms = fnms[c(4,2,3,5,1)]
+
+# plots for simulation scenarios
+
+#Data = X[[k]]
+#TrueData=A[[k]]
+n=400
+p=100
+e=1
+
+load(file.path(vicky.dir,'simu_data', paste0('BA_simu_n_',n, '_p_',p,'_e_',e,'_min_beta_0.1_100A.RData')))
+
+
+load(file=file.path(vicky.dir,'result',paste0("ALL_simu_plot_n_400_100A.RData")))
+methods = c('NS_lasso_BIC','NS_lasso_extBIC', 'NS_lasso_num','NS_lasso_F1',
+    'NS_log_BIC','NS_log_extBIC','NS_log_num','NS_log_F1',
+            "sp_no_BIC", "sp_res_BIC", "sp_df_BIC",
+            "sp_no_extBIC", "sp_res_extBIC","sp_df_extBIC",
+            "sp_no_F1", "sp_res_F1", "sp_df_F1",
+            "sp_no_num", "sp_res_num", "sp_df_num",
+            "sp_log_no_BIC","sp_log_res_BIC","sp_log_df_BIC",
+            "sp_log_no_extBIC","sp_log_res_extBIC","sp_log_df_extBIC",
+            "sp_log_no_F1","sp_log_res_F1","sp_log_df_F1",
+            "sp_log_no_num","sp_log_res_num","sp_log_df_num"
+            )
+
+fnms = list.files(file.path(vicky.dir,'simu_data'), pattern="min_beta_0.1")
+fnms = fnms[c(1:10,12,11)]
+TPR=TP/(TP+FN)
+FPR=FP/(FP+TN)
+FDR=FP/nD
+Error=FP+FN
+precision = TP/(TP+FP)
+recall = TPR
+F1 = 2*precision*recall/(precision+recall)
+
+method.vec=rep(methods, length(fnms))
+lab.BIC = rep("BIC", ncol(FP))
+lab.BIC[grep("extBIC", method.vec)] = "extBIC"
+lab.BIC[grep("num", method.vec)] = "FP+FN"
+lab.BIC[grep("F1", method.vec)] = "F1"
+
+
+lab.method = rep("NS_lasso", ncol(FP))
+lab.method[grep("NS_las", method.vec)] = "NS_LASSO"
+lab.method[grep("NS_log", method.vec)] = "NS_log"
+lab.method[grep("NS_L1", method.vec)] = "space"
+lab.method[grep("sp_no", method.vec)] = "space"
+lab.method[grep("sp_res", method.vec)] = "space"
+lab.method[grep("sp_df", method.vec)] = "space"
+lab.method[grep("sp_log", method.vec)] = "sp_log"
+
+lab.model = rep("BA", ncol(FP))
+lab.model[grep("ER_", lbs)] = "ER"
+
+lbsM = strsplit(lbs, split=c("_n_400_"))
+lbsM = strsplit(do.call(rbind, lbsM)[,2], split=c("_100A"))
+e.vec = do.call(rbind,sapply(lbsM, function(x)c(strsplit(x,'e_','.'))))[,2]
+e.vec = substring(e.vec,1,1)
+p.vec = do.call(rbind,sapply(lbsM, function(x)c(strsplit(x,'_e','.'))))[,1]
+p.vec = do.call(rbind, strsplit(p.vec,'p_'))[,2]
+lbsm = do.call(rbind, lbsM)[,1]
+method.first=sapply(strsplit(method.vec,'_'),function(x)paste0(x[1:(length(x)-1)],collapse='_'))
+lbsM = paste(method.vec, p.vec, sep="_p_")
+
+df1 = data.frame(lab.BIC,lab.method, lab.model, para=lbsM, apply(nD0,2,mean))
+df1
+
+colnames(Error) =colnames(TP) = colnames(TN) = colnames(nD) = colnames(FP) = colnames(FN) = colnames(F1) = colnames(TPR) = colnames(FDR) = lbsM
+FP[1:3,]
+FN[1:3,]
+nD[1:3,]
+
+#cols = rep("blue", ncol(FP))
+#cols[which(lab.method=="NS_LASSO")] = "orange"
+#cols[which(lab.method=="NS_log")] = "darkgrey"
+#cols[which(lab.method=="space")] = "palegreen"
+
+#cols.bd = rep("blue", ncol(FP))
+#cols.bd[which(lab.method=="NS_LASSO")] = "orange"
+#cols.bd[which(lab.method=="NS_log")] = "grey"
+#cols.bd[which(lab.method=="space")] = "darkgreen"
+
+cols = rep("grey", ncol(FP))
+cols[which(lab.BIC=="extBIC")] = "palegreen"
+cols[which(lab.BIC=="BIC")] = "orange"
+#cols[which(lab.method=="space")] = "palegreen"
+
+
+#p=100
+
+pdf(file.path(vicky.dir,'plots',paste0("compare_log_imodel_BA_n_",n,"_p_",p,"_e_",e,"_100A_F1_bioinformatics.pdf")), width=12, height=8)
+par(mfrow=c(1,1), mar=c(10,4,3,8), bty="n", cex=1.5, las=1)
+par(xpd=FALSE)
+w2kp = c(p.vec=="100"& lab.model=='BA' & lab.BIC=='extBIC' & method.vec!='NS_L1_extBIC')
+boxplot(F1[,w2kp], main="F1",col=cols[w2kp],
+        border=cols.bd[w2kp],  las=2,cex=1.5,boxwex=0.5, bty='L')
+
+boxplot(FDR[,w2kp], main="FDR",col=cols[w2kp],
+        border=cols.bd[w2kp],  las=2,cex=1.5,boxwex=0.5, bty='L')
+par(xpd=TRUE)
+legend("bottomright",inset=c(-0.5,0),c("space_log","NS_lasso", "NS_log","space"), fill=c("blue","orange","darkgrey","palegreen"), bty="n", cex=1.5)
+dev.off()
+
+
+pdf(file.path(vicky.dir,'plots',paste0("Error_FP+FN_compare_PEN_space_log_BA_e_1_100A_all.pdf")))
+par(mfrow=c(1,1), mar=c(4,12,3,1), bty="n", cex=0.5, las=1)
+w2kp = which(lab.model=="BA"  & lab.BIC!='F1' & lab.method %in% c('NS_LASSO','NS_log'))
+input.data=log(Error[,w2kp]+1)
+boxplot(input.data, main="FP + FN", horizontal=TRUE,col=cols[w2kp],cex=0.5,log='x')
+
+#abline(h=seq(4.5, 20.5, by=4), )
+#legend("bottomright", c("BIC","extBIC", "Oracle"), fill=c("seashell","palegreen", "grey"), bty="n")
+legend("bottomright", c("BIC","extBIC", "Oracle"),fill=c("orange","palegreen", "grey"), bty="n")
+
+#w2kp = which(lab.model=="BA" & e.vec==1 & lab.BIC!='FP+FN')
+
+#boxplot(F1[,w2kp], main="F1", horizontal=TRUE,col=cols[w2kp])
+#abline(h=seq(4.5, 20.5, by=4), col=cols[w2kp])
+#legend("bottomright", c("BIC","extBIC", "Oracle"), fill=c("orange","palegreen", "grey"), bty="n")
+dev.off()
+
+pdf(file.path(vicky.dir,'plots',paste0("F1_FP+FN_compare_PEN_space_log_BA_e_1_100A_all.pdf")))
+par(mfrow=c(1,1), mar=c(4,12,3,1), bty="n", cex=0.5, las=1)
+#w2kp = which(lab.model=="BA" & e.vec==1 & lab.BIC!='F1')
+
+#boxplot(log(Error[,w2kp]+1), main="FP + FN", horizontal=TRUE,col=cols[w2kp])
+#abline(h=seq(4.5, 20.5, by=4), )
+#legend("bottomright", c("BIC","extBIC", "Oracle"), fill=c("seashell","palegreen", "grey"), bty="n")
+#legend("bottomright", c("BIC","extBIC", "Oracle"), fill=c("orange","palegreen", "grey"), bty="n")
+
+w2kp = which(lab.model=="BA" & lab.BIC!='FP+FN'& lab.method %in% c('NS_LASSO','NS_log'))
+
+boxplot(F1[,w2kp], main="F1", horizontal=TRUE,col=cols[w2kp],cex=0.5)
+#abline(h=seq(4.5, 20.5, by=4), col=cols[w2kp])
+legend("bottomright", c("BIC","extBIC", "Oracle"), fill=c("orange","palegreen", "grey"), bty="n")
+
+dev.off()
+
+
+pdf(file.path(vicky.dir,'plots',paste0("FDR_FP+FN_compare_PEN_space_log_BA_e_1_100A_all.pdf")))
+par(mfrow=c(1,1), mar=c(4,12,3,1), bty="n", cex=0.5, las=1)
+#w2kp = which(lab.model=="BA" & e.vec==1 & lab.BIC!='F1')
+
+#boxplot(log(Error[,w2kp]+1), main="FP + FN", horizontal=TRUE,col=cols[w2kp])
+#abline(h=seq(4.5, 20.5, by=4), )
+#legend("bottomright", c("BIC","extBIC", "Oracle"), fill=c("seashell","palegreen", "grey"), bty="n")
+#legend("bottomright", c("BIC","extBIC", "Oracle"), fill=c("orange","palegreen", "grey"), bty="n")
+
+w2kp = which(lab.model=="BA" & lab.BIC!='F1'& lab.method %in% c('NS_LASSO','NS_log'))
+
+boxplot(FDR[,w2kp], main="FDR", horizontal=TRUE,col=cols[w2kp],cex=0.5)
+#abline(h=seq(4.5, 20.5, by=4), col=cols[w2kp])
+legend("bottomright", c("BIC","extBIC", "Oracle"), fill=c("orange","palegreen", "grey"), bty="n")
+
+dev.off()
+
+
+nD = TP = TN = FP = FN = nD0 = matrix(nrow=100, ncol=8)
+lbs = NULL
+cidx = 0
+ix=1
+estimate=list(NA, length=8)
+
+  fnmi = fnms[ix]
+  load(file.path(vicky.dir, "simu_data", fnmi))
+  ls()
+  A.vec=A
+  
+  n = nrow(X[[1]])
+  p = ncol(X[[1]])
+  
+ imodel=substr(fnmi,1,2)
+    if (imodel=='BA' & n==1000 & p > 99){
+        e = substr(fnmi, 24, 24)
+    } else if (imodel=='BA' & n==1000 & p <100){
+         e = substr(fnmi, 23, 23)
+    }   else if (imodel=='BA' & n==400 & p > 99){
+        e = substr(fnmi, 23, 23)
+    }   else if (imodel=='BA' & n==400 & p <100){
+        e = substr(fnmi, 22, 22)
+    }
+    
+    
+    if (imodel=='ER')
+    {
+        if (p==50){
+        ie = substr(fnmi, 20,30)
+        } else if (p>99){
+        ie = substr(fnmi, 21,31)
+        }
+        if (n==400 & p==100) {
+            e=ifelse(ie=='pE_2.00e-02', 1, 2)
+        } else if (n==400 & p==200){
+            e=ifelse(ie=='pE_1.00e-02', 1, 2)
+        } else if (n==400 & p==300){
+            e=ifelse(ie=='pE_6.67e-03', 1, 2)
+        } else if (n==1000 & p==50) {
+            e=ifelse(ie=='pE_4.00e-02', 1, 2)
+        } else if (n==1000 & p==100){
+            e=ifelse(ie=='pE_2.00e-02', 1, 2)
+        } else if (n==1000 & p==250){
+            e=ifelse(ie=='pE_8.00e-03', 1, 2)
+        }
+        
+    }
+    
+  
+kx=77
+p=100
+e=1    
+    # read in true graph
+    cat(kx, date(), "\n")
+    Ak=A[[kx]]
+    w  = which(apply(Ak!=0,1,sum)>1) # nodes with co-parents
+    moralA = Ak
+    
+    if(length(w) > 0){
+      for (i in 1:length(w)) {
+        moralA[t(combn(which(Ak[w[i],]!=0),2))] =1
+      }
+    }
+    
+    moralA[moralA + t(moralA)!=0]=1
+
+    trueGraph  = moralA
+    table(trueGraph)
+    table(rowSums( trueGraph !=0))
+    table(colSums( trueGraph !=0))
+
+
+    try(load(file=file.path(vicky.dir, 'result', paste0("NS_LASSO_bylambda_imethod_iData_",kx,'_imodel_',imodel, "_n_",n, "_ps_",p, "_max.edge_",e,"_100A.RData"))), silent = TRUE)
+    try(load(file=file.path(vicky.dir, 'result', paste0("PEN_bylambda_iData_",kx,'_imodel_',imodel, "_n_",n, "_ps_",p, "_max.edge_",e,"_100A.RData"))), silent = TRUE)
+        
+
+ 	for (indc in c('coef_lasso_extBIC','coef_log_extBIC_new')
+        ){
+            cidx=cidx+1
+            
+            coefk = eval(parse(text=indc))
+            estimateGraph = matrix(0,p,p)
+            if (dim(coefk)[1]==dim(coefk)[2]){
+                estimateGraph[coefk!=0 | t(coefk)!=0]=1
+                diff = c(estimateGraph) - c(trueGraph)
+            } else{
+                estimateGraph=NULL
+                diff=NULL}
+            estimate[[cidx]] = estimateGraph
+            
+            TP[kx, cidx] = sum(estimateGraph ==1 & trueGraph==1 & diff == 0)/2
+            TN[kx, cidx] = sum(estimateGraph ==0 & trueGraph==0 & diff == 0)/2
+            FP[kx, cidx] = sum(diff == 1)/2
+            FN[kx, cidx] = sum(diff == -1)/2
+            nD[kx, cidx] = sum(c(estimateGraph))/2
+            nD0[kx, cidx] = sum(c(trueGraph))/2
+            # Pen log
+        }
+        
+        for(i in 2:4){
+            cidx=cidx+1
+            cat(i, date(), "\n")
+            #try(load(file=file.path(out.dir, 'simu/100A', paste0("space_joint_imethod_", i,"_iData_",kx,"_imodel_",imodel, "_n_",n, "_p_",p, "_e_",e,"_100A.RData"))), silent=TRUE)
+            try(load(file=file.path(vicky.dir,'result',paste0("space_joint_imethod_", i,"_iData_",kx,"_imodel_",imodel,"_n_",n, "_p_",p, "_e_",e,"_100A.RData"))), silent=TRUE)
+       
+            kk=0
+            for (indc in c('r1')){
+                kk=kk+1
+                r = eval(parse(text=indc))
+                sigma = as.numeric(r$result$sig.fit)
+                sigma.mat = matrix(NA, nrow=length(sigma), ncol=length(sigma))
+                
+                for (j in 1:length(sigma)){
+                    sigma.mat[,j] = sqrt(sigma/sigma[j])
+                }
+                
+                coef.r=r$result$ParCor*sigma.mat
+                estimateGraph = (r$result$ParCor != 0)
+                diag(estimateGraph) = 0
+                estimate[[cidx]] = estimateGraph
+            }
+        }
+
+
+        for(i in 2:4){
+            cidx=cidx+1
+            cat(i, date(), "\n")
+            #try(load(file=file.path(out.dir, 'simu/100A', paste0("space_joint_imethod_", i,"_iData_",kx,"_imodel_",imodel, "_n_",n, "_p_",p, "_e_",e,"_100A.RData"))), silent=TRUE)
+            try(load(file=file.path(vicky.dir,'result',paste0("space_joint_log_imethod_", i,"_iData_",kx,"_imodel_",imodel, "_n_",n, "_p_",p, "_e_",e,"_100A.RData"))), silent=TRUE)
+       
+            kk=0
+            for (indc in c('r1')){
+                kk=kk+1
+                r = eval(parse(text=indc))
+                sigma = as.numeric(r$result$sig.fit)
+                sigma.mat = matrix(NA, nrow=length(sigma), ncol=length(sigma))
+                
+                for (j in 1:length(sigma)){
+                    sigma.mat[,j] = sqrt(sigma/sigma[j])
+                }
+                
+                coef.r=r$result$ParCor*sigma.mat
+                estimateGraph = (r$result$ParCor != 0)
+                diag(estimateGraph) = 0
+                estimate[[cidx]] = estimateGraph
+                
+            }
+        }
+        #cidx=cidx+9
+        print(cidx)
+    }
+
+method.new = do.call(rbind,strsplit(method.vec,split=c('_BIC')))
+method.new = do.call(rbind,strsplit(method.new, split=c("_extBIC")))
+
+
+
+
+kx=77
+p=100
+e=1    
+    # read in true graph
+    cat(kx, date(), "\n")
+    Ak=A.vec[[kx]]
+    w  = which(apply(Ak!=0,1,sum)>1) # nodes with co-parents
+    moralA = Ak
+    
+    if(length(w) > 0){
+      for (i in 1:length(w)) {
+        moralA[t(combn(which(Ak[w[i],]!=0),2))] =1
+      }
+    }
+    
+    moralA[moralA + t(moralA)!=0]=1
+
+    trueGraph  = moralA
+
+colnames(trueGraph)=c(1:100)
+rownames(trueGraph)=c(1:100)
+
+name=method.new[w2kp]
+
+
+  set.seed(7)
+p=100
+pdf(file.path(vicky.dir,'plots',paste0("plots_simu_truedges_n_",n,"_p_",p,"_e_",e,"_iData_100_true_edges.pdf")), width=12,height=18)
+par(mfrow=c(3,3), mar=c(5,4,3,1), bty="n", cex=0.85, las=1)
+k=1
+true.adj=trueGraph
+plot.adj=true.adj
+diag(plot.adj)=0
+temp=graph.adjacency(adjmatrix=plot.adj, mode="undirected")
+temp.degree=apply(plot.adj, 2, sum)
+V(temp)$color=(temp.degree>9)+3
+plot(temp, main='True Graph',vertex.size=3, vertex.frame.color="white",layout=layout.fruchterman.reingold, vertex.label=NA, edge.color=grey(0.5))
+true.adj=true.adj
+true = graph.adjacency(adjmatrix=true.adj, mode="undirected")
+el1 <- apply(get.edgelist(true), 1, paste, collapse="-")
+
+for (i in 1:8){
+  set.seed(7)
+plot.adj=estimate[[i]]
+diag(plot.adj)=0
+temp = graph.adjacency(adjmatrix=plot.adj, mode="undirected")
+el2 <- apply(get.edgelist(temp), 1, paste, collapse="-")
+temp.degree=apply(plot.adj, 2, sum)
+V(temp)$color=(temp.degree>9)+3
+E(temp)$color = ifelse(el2 %in% el1,'black','red')
+plot(temp,main=name[i],vertex.size=3, vertex.frame.color="white",layout=layout.fruchterman.reingold,
+ vertex.label=NA, edge.color=E(temp)$color)
+}
+dev.off()
+
+
+overall.matrix=trueGraph+estimate[[1]]+estimate[[2]]+estimate[[3]]+estimate[[4]]+estimate[[5]]+estimate[[6]]+estimate[[7]]+estimate[[8]]
+overall.matrix[which(overall.matrix>0)] =1
+
+set.seed(7)
+
+p=100
+pdf(file.path(vicky.dir,'plots',paste0("plots_simu_truedges_n_",n,"_p_",p,"_e_",e,"_iData_100_true_edges_overall.pdf")), width=12,height=18,res=600)
+par(mfrow=c(3,3), mar=c(5,4,3,1), bty="n", cex=0.85, las=1)
+k=77
+true.adj=trueGraph
+true = graph.adjacency(adjmatrix=true.adj, mode="undirected")
+el1 <- apply(get.edgelist(true), 1, paste, collapse="-")
+
+plot.adj=overall.matrix
+diag(plot.adj)=0
+temp=graph.adjacency(adjmatrix=plot.adj, mode="undirected")
+el0 <- apply(get.edgelist(temp), 1, paste, collapse="-")
+
+
+temp.degree=apply(plot.adj, 2, sum)
+V(temp)$color=(temp.degree>15)+3
+E(temp)$color = ifelse(el0 %in% el1,'black','white')
+plot(temp, main='',vertex.size=3, vertex.frame.color="white",layout=layout.fruchterman.reingold, vertex.label=NA, edge.color=E(temp)$color)
+title(main="True Graph", cex.main=3)
+
+#dev.off()
+
+
+for (i in 1:8){
+  set.seed(7)
+true.adj=estimate[[i]]
+true = graph.adjacency(adjmatrix=true.adj, mode="undirected")
+el2 <- apply(get.edgelist(true), 1, paste, collapse="-")
+
+plot.adj=overall.matrix
+diag(plot.adj)=0
+temp=graph.adjacency(adjmatrix=plot.adj, mode="undirected")
+el0 <- apply(get.edgelist(temp), 1, paste, collapse="-")
+
+temp.degree=apply(plot.adj, 2, sum)
+V(temp)$color=(temp.degree>9)+3
+E(temp)$color = ifelse(el0 %in% el1 & el0 %in% el2,'black',
+                        ifelse(el0 %in% el2, 'red', 
+                          ifelse(el0 %in% el1, 'light grey', 'white')))
+plot(temp,main="",vertex.size=3, vertex.frame.color="white",layout=layout.fruchterman.reingold,
+ vertex.label=NA, edge.color=E(temp)$color)
+title(main=name[i], cex.main=3)
+
+}
+dev.off()
+
+
+p=100
+pdf(file.path(vicky.dir,'plots',paste0("plots_simu_truedges_n_",n,"_p_",p,"_e_",e,"_iData_100_true_edges_overall_1plots.pdf")),width=12,height=12,res=600)
+par(oma=c(4,1,1,1))
+#par(mfrow=c(2,2), mar=c(3,3,3,3), bty="n", cex=0.85, las=1)
+par(xpd=FALSE)
+k=77
+
+for (i in c(7)){
+  set.seed(7)
+true.adj=estimate[[i]]
+true = graph.adjacency(adjmatrix=true.adj, mode="undirected")
+el2 <- apply(get.edgelist(true), 1, paste, collapse="-")
+
+plot.adj=overall.matrix
+diag(plot.adj)=0
+temp=graph.adjacency(adjmatrix=plot.adj, mode="undirected")
+el0 <- apply(get.edgelist(temp), 1, paste, collapse="-")
+
+temp.degree=apply(plot.adj, 2, sum)
+V(temp)$color=(temp.degree>9)+3
+E(temp)$color = ifelse(el0 %in% el1 & el0 %in% el2,'black',
+                        ifelse(el0 %in% el2, 'red', 
+                          ifelse(el0 %in% el1, 'darkgrey', 'white')))
+plot(temp,main="",vertex.size=3, vertex.frame.color="white",layout=layout.fruchterman.reingold,
+ vertex.label=NA, edge.color=E(temp)$color)
+title(main='space_log_res', cex.main=3)
+}
+par(xpd=TRUE)
+par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
+plot(0, 0, type = "n", bty = "n", xaxt = "n", yaxt = "n")
+legend("bottom", inset=c(0,0),xpd=TRUE, horiz =TRUE, bty='n', c("True edge","Positive edge", "Negative edge"), col=c("black","red","darkgrey"),lty=c(1,1,1), lwd=2, cex=1.5)
+
+dev.off()
+
+
+
+
+overall.matrix=trueGraph+estimate[[1]]+estimate[[4]]+estimate[[7]]
+overall.matrix[which(overall.matrix>0)] =1
+
+set.seed(77)
+
+p=100
+pdf(file.path(vicky.dir,'plots',paste0("plots_simu_truedges_n_",n,"_p_",p,"_e_",e,"_iData_100_true_edges_overall_4plots.pdf")))
+par(oma=c(4,1,1,1))
+par(mfrow=c(2,2), mar=c(3,3,3,3), bty="n", cex=0.85, las=1)
+par(xpd=FALSE)
+k=100
+true.adj=trueGraph
+true = graph.adjacency(adjmatrix=true.adj, mode="undirected")
+el1 <- apply(get.edgelist(true), 1, paste, collapse="-")
+
+plot.adj=overall.matrix
+diag(plot.adj)=0
+temp=graph.adjacency(adjmatrix=plot.adj, mode="undirected")
+el0 <- apply(get.edgelist(temp), 1, paste, collapse="-")
+
+
+temp.degree=apply(plot.adj, 2, sum)
+V(temp)$color=(temp.degree>15)+3
+E(temp)$color = ifelse(el0 %in% el1,'black','white')
+plot(temp, main='',vertex.size=3, vertex.frame.color="white",layout=layout.fruchterman.reingold, vertex.label=NA, edge.color=E(temp)$color)
+title(main="True Graph", cex.main=3)
+
+for (i in c(1,4,7)){
+  set.seed(77)
+true.adj=estimate[[i]]
+true = graph.adjacency(adjmatrix=true.adj, mode="undirected")
+el2 <- apply(get.edgelist(true), 1, paste, collapse="-")
+
+plot.adj=overall.matrix
+diag(plot.adj)=0
+temp=graph.adjacency(adjmatrix=plot.adj, mode="undirected")
+el0 <- apply(get.edgelist(temp), 1, paste, collapse="-")
+
+temp.degree=apply(plot.adj, 2, sum)
+V(temp)$color=(temp.degree>9)+3
+E(temp)$color = ifelse(el0 %in% el1 & el0 %in% el2,'black',
+                        ifelse(el0 %in% el2, 'red', 
+                          ifelse(el0 %in% el1, 'darkgrey', 'white')))
+plot(temp,main="",vertex.size=3, vertex.frame.color="white",layout=layout.fruchterman.reingold,
+ vertex.label=NA, edge.color=E(temp)$color)
+title(main=name[i], cex.main=3)
+}
+par(xpd=TRUE)
+par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
+plot(0, 0, type = "n", bty = "n", xaxt = "n", yaxt = "n")
+legend("bottom", inset=c(0,0),xpd=TRUE, horiz =TRUE, bty='n', c("True edge","Positive edge", "Negative edge"), col=c("black","red","darkgrey"),lty=c(1,1,1), lwd=2, cex=1.5)
+
+dev.off()
+
+
+pdf(file.path(vicky.dir,'plots',paste0("compare_log_imodel_BA_n_",n,"_p_",p,"_e_",e,"_100A_F1_bioinformatics.pdf")))
+par(mfrow=c(1,1), mar=c(10,4,3,8), bty="n", cex=1.5, las=1)
+par(xpd=FALSE)
+w2kp = c(p.vec=="100"& lab.model=='BA' & e.vec=='1' & lab.BIC=='extBIC' & method.vec!='NS_L1_extBIC')
+boxplot(F1[,w2kp], main="F1",col=cols[w2kp],
+        border=cols.bd[w2kp],  las=2,cex=1.5,boxwex=0.5, bty='L')
+par(xpd=TRUE)
+legend("bottomright",inset=c(-0.5,0),c("space_log","NS_lasso", "NS_log","space"), fill=c("blue","orange","darkgrey","palegreen"), bty="n", cex=1.5)
+dev.off()
+
+
+
